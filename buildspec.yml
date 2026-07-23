@@ -1,0 +1,39 @@
+version: 0.2
+
+env:
+  variables:
+    CODEARTIFACT_DOMAIN: "devopswebproject"
+    CODEARTIFACT_REPO: "pypi-store"
+    AWS_REGION: "us-east-1"
+
+phases:
+  install:
+    runtime-versions:
+      python: 3.11
+    commands:
+      - echo "Instalando dependências do sistema..."
+      - pip install --upgrade pip
+
+  pre_build:
+    commands:
+      - echo "Autenticando no CodeArtifact..."
+      - aws codeartifact login --tool pip --repository $CODEARTIFACT_REPO --domain $CODEARTIFACT_DOMAIN --domain-owner $(aws sts get-caller-identity --query Account --output text) --region $AWS_REGION
+      - echo "Instalando dependências do projeto..."
+      - pip install -r requirements.txt
+      - echo "Instalando ferramentas de build..."
+      - pip install pip-audit gunicorn
+
+  build:
+    commands:
+      - echo "Rodando verificação de vulnerabilidades com pip-audit..."
+      - pip-audit -r requirements.txt
+      - echo "Build concluído com sucesso"
+
+  post_build:
+    commands:
+      - echo "Empacotando artefatos para deploy..."
+
+artifacts:
+  files:
+    - '**/*'
+  base-directory: '.'
